@@ -29,6 +29,13 @@ export interface paths {
          *     Send an `Idempotency-Key` to make retries safe: repeating the request with the same key returns
          *     the message the first request queued, with `Idempotent-Replayed: true`, instead of sending it again.
          *
+         *     With a personal access token, `rotate: true` (instead of `session_id`) sends to a person from the
+         *     workspace's sender rotation: of its connected sessions with the `rotation` setting on, the one
+         *     that has not written to them yet, or that did longest ago. The answer adds `from`, the number it
+         *     goes out from. If that session drops before sending, the message moves to another one in rotation.
+         *     A recipient gets at most the workspace's limit of such messages in 24 hours (5 unless an owner
+         *     changed it); over it the request answers `429` with `recipient_limit`.
+         *
          */
         post: operations["sendMessage"];
         delete?: never;
@@ -1879,6 +1886,8 @@ export interface components {
             ignore_channels?: boolean;
             /** @description Keeps received images, video, audio, documents and stickers for 30 days and links them in `messages.received` (`media.id`, `media.url`). */
             download_media?: boolean;
+            /** @description Messages sent with `rotate` may go out from this session. */
+            rotation?: boolean;
         };
         /** @description `http://`, `https://` or `socks5://` proxy on a public host name (no IP address), e.g.
          *     `socks5://user:pass@proxy.example.com:1080`.
@@ -1901,6 +1910,15 @@ export interface components {
             last_active_at?: string | null;
             /** Format: date-time */
             created_at?: string;
+            /**
+             * @description `private`: only the member who created it can see and use it.
+             * @enum {string}
+             */
+            visibility?: "workspace" | "private";
+            /** @description The creator's email; `""` when unknown. */
+            created_by?: string;
+            /** @description Another member's private session, listed for a workspace owner. Only its name, number, status and `settings.rotation` are filled in; it can only be deleted or shared. */
+            restricted?: boolean;
         };
         SessionEvent: {
             id?: number;
@@ -1943,6 +1961,10 @@ export interface components {
         };
         SendMessage: {
             session_id?: components["schemas"]["SessionIDField"];
+            /** @description With a personal access token, instead of `session_id`: send from the workspace's sender rotation.
+             *     People only (no groups or channels), and without `reply_to`.
+             *      */
+            rotate?: boolean;
             /** @description A phone number with its country code (`+6281234567890`), or a JID: a person
              *     (`…@s.whatsapp.net`, `…@lid`), a group (`…@g.us`) or a channel (`…@newsletter`).
              *      */
@@ -2001,6 +2023,8 @@ export interface components {
             /** @description Why it failed, or the last retry's reason. */
             error?: string;
             attempts?: number;
+            /** @description Sent with `rotate`: Warsita picked the session. */
+            rotation?: boolean;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -2297,8 +2321,9 @@ export interface operations {
             query?: never;
             header?: {
                 /** @description A unique value per message, such as an order ID or a UUID (up to 255 printable ASCII characters).
-                 *     Keys belong to the session and are remembered as long as the message is in its log (30 days, or
-                 *     until the log is cleared). The same key with a different request is refused with `422`.
+                 *     Keys belong to the session (with `rotate`, to the workspace) and are remembered as long as the
+                 *     message is in its log (30 days, or until the log is cleared). The same key with a different
+                 *     request is refused with `422`.
                  *      */
                 "Idempotency-Key"?: string;
             };
@@ -2323,7 +2348,10 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data?: components["schemas"]["Message"];
+                        data?: components["schemas"]["Message"] & {
+                            /** @description With `rotate`: the number the message goes out from. */
+                            from?: string;
+                        };
                     };
                 };
             };
@@ -2331,6 +2359,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             402: components["responses"]["Suspended"];
             404: components["responses"]["NotFound"];
+            /** @description With `rotate`: no session in rotation is connected (`no_sender_available`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description The `Idempotency-Key` was already used for a different message (`idempotency_key_reused`). */
             422: {
                 headers: {
@@ -2346,8 +2383,8 @@ export interface operations {
     getMessage: {
         parameters: {
             query?: {
-                /** @description The session to use. Required with a personal access token; ignored with an API key. */
-                session_id?: components["parameters"]["SessionIDQuery"];
+                /** @description Not needed and ignored. A personal access token reads any message it may see, including those sent with `rotate`; an API key reads its own session's. */
+                session_id?: string;
             };
             header?: never;
             path: {
@@ -3547,6 +3584,12 @@ export interface operations {
                     /** @description Sent whole; keys you leave out are false. Without it, only `account_protection` is on. */
                     settings?: components["schemas"]["SessionSettings"];
                     proxy_url?: components["schemas"]["ProxyURL"];
+                    /**
+                     * @description `private` keeps the session to the member whose token or dashboard creates it.
+                     * @default workspace
+                     * @enum {string}
+                     */
+                    visibility?: "workspace" | "private";
                 };
             };
         };
@@ -3640,6 +3683,11 @@ export interface operations {
                     settings?: components["schemas"]["SessionSettings"];
                     /** @description `""` removes the proxy. */
                     proxy_url?: components["schemas"]["ProxyURL"];
+                    /**
+                     * @description Only the session's creator can make it private; an owner can share another member's private session.
+                     * @enum {string}
+                     */
+                    visibility?: "workspace" | "private";
                 };
             };
         };
@@ -3655,6 +3703,15 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
+            /** @description A change only the session's creator may make (`not_allowed`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
         };
     };

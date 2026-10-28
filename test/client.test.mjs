@@ -54,6 +54,16 @@ test("a token adds session_id: in the body for POST, in the query otherwise", as
   await assert.rejects(new Warsita({ apiKey: "wsp_token", fetch }).contacts.list(), /sessionId/);
 });
 
+test("rotate sends without session_id, and get needs no session", async () => {
+  const fetch = fakeFetch({ status: 202, body: { data: { id: "msg_1", from: "+6281100000001", rotation: true } } }, { status: 200, body: { data: {} } });
+  const warsita = new Warsita({ apiKey: "wsp_token", sessionId: "ses_a", fetch });
+  const m = await warsita.messages.send({ rotate: true, to: "+6281234567890", text: "Hi" });
+  assert.equal(m.from, "+6281100000001");
+  assert.deepEqual(fetch.calls[0].body, { rotate: true, to: "+6281234567890", text: "Hi" });
+  await new Warsita({ apiKey: "wsp_token", fetch }).messages.get("msg_1");
+  assert.equal(fetch.calls[1].url.searchParams.get("session_id"), null);
+});
+
 test("responses with more than data are returned whole; 204 is undefined", async () => {
   const fetch = fakeFetch({ status: 201, body: { session: { id: "ses_1" }, api_key: "wsk_new" } }, { status: 204 });
   const warsita = new Warsita({ apiKey: "wsp_token", fetch });

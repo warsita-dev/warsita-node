@@ -11,19 +11,25 @@ export class Messages {
 
   /**
    * Queues a message. An Idempotency-Key is generated for you (or pass your own), so the
-   * client can retry safely: a repeat returns the message the first request queued.
+   * client can retry safely: a repeat returns the message the first request queued. With a
+   * personal access token, `rotate: true` sends from the workspace's sender rotation instead of
+   * a session; the answer's `from` is the number it goes out from.
    */
   send(body: NoSession<Body<"/v1/messages", "post">>, opts: Opts & { idempotencyKey?: string } = {}): Promise<Result<"/v1/messages", "post">> {
     const key = opts.idempotencyKey ?? crypto.randomUUID();
-    return this.t.request({ method: "POST", path: "/v1/messages", body, headers: { "Idempotency-Key": key }, scoped: true, idempotent: true }, opts);
+    return this.t.request(
+      { method: "POST", path: "/v1/messages", body, headers: { "Idempotency-Key": key }, scoped: !body.rotate, idempotent: true },
+      opts,
+    );
   }
 
   list(query: { limit?: number; status?: string; before?: string } = {}, opts: Opts = {}): Promise<Result<"/v1/messages", "get">> {
     return this.t.request({ method: "GET", path: "/v1/messages", query, scoped: true, idempotent: true }, opts);
   }
 
+  /** A message by id; a token needs no session for this, so rotated messages are found too. */
   get(id: string, opts: Opts = {}): Promise<Result<"/v1/messages/{id}", "get">> {
-    return this.t.request({ method: "GET", path: `/v1/messages/${p(id)}`, scoped: true, idempotent: true }, opts);
+    return this.t.request({ method: "GET", path: `/v1/messages/${p(id)}`, idempotent: true }, opts);
   }
 
   /** Changes a sent text message, within 20 minutes of sending. */

@@ -41,6 +41,16 @@ const sessions = await warsita.sessions.list();
 await warsita.groups.list({ sessionId: sessions[1].id }); // or per call
 ```
 
+With several numbers, a token can let Warsita pick one per message ([sender rotation](https://warsita.com/docs/messages#sender-rotation)): of the sessions with the `rotation` setting on, the one that wrote to this person longest ago.
+
+```js
+const message = await warsita.messages.send({ rotate: true, to: "+6281234567890", text: "Your invoice is due on 1 November." });
+console.log(message.from, message.session_id);
+await warsita.messages.get(message.id); // no session needed
+```
+
+Sessions can be private to the member who creates them: `warsita.sessions.create({ name: "My number", visibility: "private" })`.
+
 ## Receive webhooks
 
 Pass the raw body, not parsed JSON:
