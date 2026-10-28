@@ -1,0 +1,52 @@
+{
+  "name": "warsita",
+  "version": "0.1.0",
+  "description": "Official Node.js client for the Warsita WhatsApp API: send messages, manage sessions, contacts and groups, and verify webhooks.",
+  "keywords": [
+    "whatsapp",
+    "whatsapp-api",
+    "warsita",
+    "webhook",
+    "messaging"
+  ],
+  "homepage": "https://warsita.com/docs",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "generate": "openapi-typescript openapi.yaml -o src/schema.ts",
+    "update-spec": "curl -sf https://warsita.com/openapi.yaml -o openapi.yaml && npm run generate",
+    "build": "rm -rf dist && tsc -p tsconfig.json && tsc -p tsconfig.cjs.json && node scripts/cjs-package.mjs",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "prepublishOnly": "npm test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.6",
+    "openapi-typescript": "7.4.4",
+    "typescript": "5.6.3",
+    "yaml": "2.6.1"
+  }
+}
