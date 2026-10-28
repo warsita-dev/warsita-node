@@ -1,6 +1,6 @@
 {
   "name": "warsita",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Official Node.js client for the Warsita WhatsApp API: send messages, manage sessions, contacts and groups, and verify webhooks.",
   "keywords": [
     "whatsapp",

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { parse } from "yaml";
 
-import { OPERATIONS, Warsita, WarsitaError, verifyWebhook } from "../dist/esm/index.js";
+import { OPERATIONS, VERSION, Warsita, WarsitaError, verifyWebhook } from "../dist/esm/index.js";
 
 // fakeFetch answers each call with the next response and records what was sent.
 function fakeFetch(...responses) {
@@ -108,4 +108,12 @@ test("verifyWebhook accepts a valid signature and refuses forged or old ones", (
   assert.throws(() => verifyWebhook(body + " ", sig, secret), /does not match/);
   assert.throws(() => verifyWebhook(body, sig, secret, { now: (t + 600) * 1000 }), /too old/);
   assert.throws(() => verifyWebhook(body, undefined, secret), /missing/);
+});
+
+test("VERSION matches package.json and goes out in the User-Agent", async () => {
+  const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+  assert.equal(VERSION, pkg.version);
+  const fetch = fakeFetch({ status: 200, body: { status: "ok" } });
+  await new Warsita({ apiKey: "wsk_test", fetch }).health();
+  assert.equal(fetch.calls[0].init.headers["User-Agent"], `warsita-node/${pkg.version}`);
 });

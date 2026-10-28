@@ -70,7 +70,7 @@ app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
 | `sessions` | `list`, `create`, `get`, `update`, `delete`, `connect`, `restart`, `disconnect`, `qr`, `pairingCode`, `regenerateApiKey`, `logs`, `clearMessages`, `events` (live stream) |
 | `sessions.webhook` | `get`, `set`, `rotateSecret`, `test`, `deliveries`, `resend` |
 
-Responses that hold only `data` are unwrapped. Errors are `WarsitaError` with the API's `status`, `code` and `message` (and `retryAfter` on rate limits). The full reference is at [warsita.com/docs](https://warsita.com/docs).
+Responses that hold only `data` are unwrapped. Errors are `WarsitaError` with the API's `status`, `code` and `message` (and `retryAfter` on rate limits). The full reference is at [warsita.com/docs](https://warsita.com/docs), with an SDK guide at [warsita.com/docs/sdks](https://warsita.com/docs/sdks).
 
 ## Development
 

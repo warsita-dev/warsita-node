@@ -1,4 +1,5 @@
 import type { paths } from "./schema.js";
+import { VERSION } from "./version.js";
 
 // The transport: authentication, session_id, retries, errors and unwrapping { data }.
 
@@ -125,7 +126,7 @@ export class Transport {
     for (const [k, v] of Object.entries(call.query ?? {})) {
       if (v !== undefined) url.searchParams.set(k, String(v));
     }
-    const headers: Record<string, string> = { Authorization: `Bearer ${this.apiKey}`, "User-Agent": "warsita-node/0.1.0", ...call.headers };
+    const headers: Record<string, string> = { Authorization: `Bearer ${this.apiKey}`, "User-Agent": `warsita-node/${VERSION}`, ...call.headers };
     if (body !== undefined && !call.form) headers["Content-Type"] = "application/json";
 
     for (let attempt = 0; ; attempt++) {

@@ -6,6 +6,7 @@ import type { components } from "./schema.js";
 
 export { WarsitaError, type RequestOptions, type WarsitaOptions } from "./client.js";
 export type { components, paths } from "./schema.js";
+export { VERSION } from "./version.js";
 
 type S = components["schemas"];
 export type Message = S["Message"];
