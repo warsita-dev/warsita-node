@@ -1,0 +1,24 @@
+# Publishes to npm when a tag like v0.1.0 is pushed. Uses npm trusted publishing (OIDC):
+# register this repository and workflow as a trusted publisher of the "warsita" package on
+# npmjs.com first; no token is stored.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: test "v$(node -p 'require("./package.json").version')" = "$GITHUB_REF_NAME"
+      - run: npm test
+      - run: npm publish --provenance --access public
