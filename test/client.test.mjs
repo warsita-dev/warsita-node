@@ -85,6 +85,17 @@ test("rate limits are retried after Retry-After; a send keeps its idempotency ke
   assert.equal(keys.size, 1);
 });
 
+test("a 429 without Retry-After (a daily limit) is not retried", async () => {
+  const fetch = fakeFetch({ status: 429, body: { error: { code: "trial_limit", message: "The free trial sends up to 100 messages a day." } } });
+  const warsita = new Warsita({ apiKey: "wsk_test", fetch });
+  await assert.rejects(warsita.messages.send({ to: "+6281234567890", text: "Hi" }), (err) => {
+    assert.ok(err instanceof WarsitaError);
+    assert.equal(err.code, "trial_limit");
+    return true;
+  });
+  assert.equal(fetch.calls.length, 1);
+});
+
 test("server errors on calls that are not idempotent are not retried", async () => {
   const fetch = fakeFetch({ status: 504, body: { error: { code: "runtime_timeout", message: "WhatsApp did not answer in time." } } });
   const warsita = new Warsita({ apiKey: "wsk_test", fetch });

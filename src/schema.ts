@@ -29,12 +29,19 @@ export interface paths {
          *     Send an `Idempotency-Key` to make retries safe: repeating the request with the same key returns
          *     the message the first request queued, with `Idempotent-Replayed: true`, instead of sending it again.
          *
+         *     A phone number that opted out of the workspace's messages (it replied STOP, or someone marked it
+         *     in the dashboard's Contacts) is refused with `422` and `recipient_opted_out`, whichever number
+         *     sends.
+         *
          *     With a personal access token, `rotate: true` (instead of `session_id`) sends to a person from the
          *     workspace's sender rotation: of its connected sessions with the `rotation` setting on, the one
          *     that has not written to them yet, or that did longest ago. The answer adds `from`, the number it
          *     goes out from. If that session drops before sending, the message moves to another one in rotation.
          *     A recipient gets at most the workspace's limit of such messages in 24 hours (5 unless an owner
          *     changed it); over it the request answers `429` with `recipient_limit`.
+         *
+         *     On the free trial, `rotate` is refused with `403` and `trial_limit`, and so is every message
+         *     after the 100th in 24 hours, with `429` and `trial_limit`, until the count drops.
          *
          */
         post: operations["sendMessage"];
@@ -2358,6 +2365,15 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             402: components["responses"]["Suspended"];
+            /** @description With `rotate` on the free trial (`trial_limit`). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             404: components["responses"]["NotFound"];
             /** @description With `rotate`: no session in rotation is connected (`no_sender_available`). */
             409: {
@@ -2368,7 +2384,9 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description The `Idempotency-Key` was already used for a different message (`idempotency_key_reused`). */
+            /** @description The `Idempotency-Key` was already used for a different message (`idempotency_key_reused`), or the
+             *     recipient opted out of the workspace's messages (`recipient_opted_out`).
+             *      */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -2377,7 +2395,23 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            429: components["responses"]["RateLimited"];
+            /** @description More than 600 requests in the current minute (`rate_limited`; retry after `Retry-After` seconds);
+             *     with `rotate`, the recipient already got the workspace's daily limit (`recipient_limit`); or the
+             *     free trial sent 100 messages in the last 24 hours (`trial_limit`).
+             *      */
+            429: {
+                headers: {
+                    /** @description With `rate_limited`: seconds until the limit resets. */
+                    "Retry-After"?: number;
+                    "X-RateLimit-Limit": components["headers"]["RateLimitLimit"];
+                    "X-RateLimit-Remaining": components["headers"]["RateLimitRemaining"];
+                    "X-RateLimit-Reset": components["headers"]["RateLimitReset"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     getMessage: {
@@ -2537,6 +2571,15 @@ export interface operations {
             404: components["responses"]["NotFound"];
             /** @description The message did not fail, or it failed before 28 October 2026 when failed messages did not keep their content (`not_resendable`). */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The recipient opted out of the workspace's messages since (`recipient_opted_out`). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

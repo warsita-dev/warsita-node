@@ -151,9 +151,10 @@ export class Transport {
       if (res.ok) return res;
 
       const retryAfter = Number(res.headers.get("Retry-After")) || undefined;
-      // A rate-limited call was not processed, so any call may retry; server errors only when
-      // repeating it is harmless.
-      const retryable = res.status === 429 || (call.idempotent && [500, 503, 504].includes(res.status));
+      // A rate-limited call (429 with Retry-After) was not processed, so any call may retry; other
+      // 429s (recipient_limit, trial_limit) would fail again. Server errors retry only when
+      // repeating the call is harmless.
+      const retryable = (res.status === 429 && res.headers.has("Retry-After")) || (call.idempotent && [500, 503, 504].includes(res.status));
       if (retryable && attempt < this.maxRetries) {
         await sleep(retryAfter ? retryAfter * 1000 : backoff(attempt));
         continue;
